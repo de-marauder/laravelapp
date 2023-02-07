@@ -1,0 +1,135 @@
+# Use an official PHP image as the base image
+FROM debian
+
+# Set the working directory in the container
+WORKDIR /var/www/app
+# Install necessary server packages
+# Install necessary PHP extensions
+USER root
+RUN apt-get update && apt-get install -y \
+    # apache2 \
+    lsb-release \
+    ca-certificates \
+    apt-transport-https \
+    software-properties-common \
+    gnupg2 \
+    libaugeas0
+
+RUN apt-get update && apt-get install -f
+
+RUN apt-get install -y \
+    wget
+
+RUN apt-get update && apt-get install -f
+RUN apt-get install -y \
+    curl
+
+# Add php repository to package sources
+RUN echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" >> /etc/apt/sources.list.d/sury-php.list
+
+# Import php repository key
+RUN wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add -
+
+# Update repo cache
+RUN apt-get update
+
+# Install necessary PHP extensions
+RUN apt-get install -y php \
+    php-cli \
+    php-common \
+    php-fpm \
+    php-json \
+    # php-mysql \
+    php-pgsql \
+    php-zip \
+    php-gd \
+    php-mbstring \
+    php-curl \
+    php-xml \
+    php-bcmath \
+    php-json
+
+RUN apt-get install -y \
+    libapache2-mod-php8.2
+
+# Setup postgres database
+
+# Install postgress
+RUN apt-get install -y postgresql \
+    postgresql-contrib \    
+    python3-psycopg2
+
+
+USER postgres
+# RUN createdb -U postgres newdb
+RUN /etc/init.d/postgresql start && psql -c "\set AUTOCOMMIT on\nALTER USER postgres WITH ENCRYPTED PASSWORD 'postgres';CREATE DATABASE laravelapp OWNER=postgres;"
+# Add all privileges for postgres user
+# RUN psql -c "CREATE DATABASE laravelapp OWNER=postgres;"
+# 
+
+USER root
+
+# Import apache config for http
+# ADD ./apache.conf /etc/apache2/sites-available/app.conf
+
+# Enable site
+# Enable new site HTTP
+# RUN /usr/sbin/a2ensite app.conf
+
+# Disable default Apache site
+# RUN /usr/sbin/a2dissite 000-default.conf
+
+# Reload apache
+# RUN /etc/init.d/apache2 restart
+
+# Copy the application code to the container
+COPY . .
+
+# Assign file permissions
+# RUN find "/var/www/app" -type f -exec chmod 664 '{}';
+RUN chmod -R 775 .
+# Assign file permissions
+# RUN find "/var/www/app" -type d -exec chmod 775 '{}';
+
+# Set the ownership of the application code to the www-data user
+RUN chown -R $USER:www-data /var/www/app
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Run composer install to install dependencies
+RUN composer install --no-dev --optimize-autoloader
+RUN composer update
+
+# Generate app key
+RUN \ 
+    php artisan key:generate 
+
+
+# Migrate database
+RUN   \
+    /etc/init.d/postgresql start && \
+    echo "pgsql started" && \
+    php artisan migrate && \
+    echo "migrate done"
+
+
+# Seed database
+RUN \
+    /etc/init.d/postgresql start && \
+    echo "pgsql started" && \
+    php artisan db:seed &&\
+    echo "seed done"
+
+
+# Expose port 9000 for the PHP FPM process
+EXPOSE 3000
+CMD ["composer", "create-project"]
+
+# RUN /etc/init.d/postgresql start
+# CMD ["/etc/init.d/apache2", "start"]
+
+# Run the PHP FPM process as the default command
+# CMD ["php-fpm"]
+
+# docker run -itd -p 8080:80 --name laravelapp laravelapp bash /etc/init.d/postgresql start

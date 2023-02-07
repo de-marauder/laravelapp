@@ -1,0 +1,36 @@
+# Use an official PHP image as the base image
+FROM php:7.4-fpm
+
+# Set the working directory in the container
+WORKDIR /var/www/html
+
+# Install necessary PHP extensions
+RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    zip \
+    unzip \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+&& docker-php-ext-install -j$(nproc) iconv \
+&& docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
+&& docker-php-ext-install -j$(nproc) gd \
+&& docker-php-ext-install pdo_mysql
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Copy the application code to the container
+COPY . /var/www/html
+
+# Set the ownership of the application code to the www-data user
+RUN chown -R www-data:www-data /var/www/html
+
+# Run composer install to install dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# Expose port 9000 for the PHP FPM process
+EXPOSE 9000
+
+# Run the PHP FPM process as the default command
+CMD ["php-fpm"]
