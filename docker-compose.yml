@@ -28,6 +28,8 @@ services:
     volumes:
       - ./:/var/www
       - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./logs/access.log:/var/log/nginx/access.log
+      - ./logs/error.log:/var/log/nginx/error.log
     ports:
       - "80:80"
       - "443:443"
