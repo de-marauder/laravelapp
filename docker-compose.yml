@@ -6,7 +6,7 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfile
-    image: demarauder/php
+    image: demarauder/laravelapp
     container_name: app
     restart: unless-stopped
     tty: true
