@@ -3,9 +3,9 @@ services:
   
   #PHP Service
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile-app
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     image: demarauder/php
     container_name: app
     restart: unless-stopped
