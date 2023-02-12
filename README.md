@@ -1,82 +1,61 @@
-# ![Laravel RealWorld Example App](.github/readme/logo.png)
+# How to dockerize a laravel application and serve it using LEMP stack and docker compose
 
-[![RealWorld: Backend](https://img.shields.io/badge/RealWorld-Backend-blueviolet.svg)](https://github.com/gothinkster/realworld)
-[![Tests: status](https://github.com/f1amy/laravel-realworld-example-app/actions/workflows/tests.yml/badge.svg)](https://github.com/f1amy/laravel-realworld-example-app/actions/workflows/tests.yml)
-[![Coverage: percent](https://codecov.io/gh/f1amy/laravel-realworld-example-app/branch/main/graph/badge.svg)](https://codecov.io/gh/f1amy/laravel-realworld-example-app)
-[![Static Analysis: status](https://github.com/f1amy/laravel-realworld-example-app/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/f1amy/laravel-realworld-example-app/actions/workflows/static-analysis.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellowgreen.svg)](https://opensource.org/licenses/MIT)
+## Requirements
+- docker
+- docker-compose or docker compose
 
-> Example of a PHP-based Laravel application containing real world examples (CRUD, auth, advanced patterns, etc) that adheres to the [RealWorld](https://github.com/gothinkster/realworld) API spec.
+## Procedure
 
-This codebase was created to demonstrate a backend application built with [Laravel framework](https://laravel.com/) including RESTful services, CRUD operations, authentication, routing, pagination, and more.
+1. Clone laravel app git repo and create the [`.env` file](./.env)
+   ```bash
+   git clone https://github.com/de-marauder/laravelapp.git
+   cd laravelapp
+   nano .env
+   ```
+2. Using the compose image, run a container with a binded mount to install application dependencies and run updates
+   ```bash
+   docker run -it --name compose --rm -v $(pwd):/app composer install
+   docker run -it --name compose --rm -v $(pwd):/app composer update
+   ```
+3. Write the docker-compose.yml file. There will be 3 services (containers). One for the laravel application, one for the database and one for our web server (nginx). It should look like [this](./docker-compose.yml). The services are connected together by a custom bridge network (this allows containers to reference themselves using their names as a DNS). Data mounts are also attached to transfer the application after it has been built to the webserver service and log access data in the `./logs` directory of the cloned repo. Volumes are also mounted for transfering database log data. 
+4. Write a [Dockerfile](./Dockerfile) for the laravel app using the `php:fpm` base image. It should look like [this](./Dockerfile)
+5. Run docker compose
+   ```bash
+   docker compose up -d
+   ```
+6. Create database user and assign privileges
+   ```bash
+   docker exec -it db bash
+   ```
+   then,
+   ```bash
+   mysql -u root -p
+   # input your password defined in the docker-compose file
+   ```
+   then,
+   ```bash
+   show databases; # to confirm your database defined in the docker-compose file was created
+   GRANT ALL ON laravel.* TO 'laraveluser'@'%' IDENTIFIED BY 'your_laravel_db_password';
+   ```
+   make sure to change `laraveluser` (the database user) and `your_laravel_db_password` (the database password) to what is defined in docker-compose file.
+   ```bash
+   FLUSH PRIVILEGES; # alert the mysql server about changes
+   ```
+   Exit the mysql console
+   ```bash
+   EXIT
+   ```
+   Exit container
+   ```bash
+   exit
+   ```
 
-We've gone to great lengths to adhere to the **Laravel framework** community style guides & best practices.
+7. Migrate the applications database
+   ```bash
+   docker exec -it app bash -c "php artisan migrate --seed"
+   ```
+8. Check your host IP or localhost to verify application is working.
+   ```bash
+   curl localhost
+   ```
 
-For more information on how to this works with other frontends/backends, head over to the [RealWorld](https://github.com/gothinkster/realworld) repo.
-
-## How it works
-
-The API is built with [Laravel](https://laravel.com/), making the most of the framework's features out-of-the-box.
-
-The application is using a custom JWT auth implementation: [`app/Jwt`](./app/Jwt).
-
-## Getting started
-
-The preferred way of setting up the project is using [Laravel Sail](https://laravel.com/docs/sail),
-for that you'll need [Docker](https://docs.docker.com/get-docker/) under Linux / macOS (or Windows WSL2).
-
-### Installation
-
-Clone the repository and change directory:
-
-    git clone https://github.com/f1amy/laravel-realworld-example-app.git
-    cd laravel-realworld-example-app
-
-Install dependencies (if you have `composer` locally):
-
-    composer create-project
-
-Alternatively you can do the same with Docker:
-
-    docker run --rm -it \
-        --volume $PWD:/app \
-        --user $(id -u):$(id -g) \
-        composer create-project
-
-Start the containers with PHP application and PostgreSQL database:
-
-    ./vendor/bin/sail up -d
-
-(Optional) Configure a Bash alias for `sail` command:
-
-    alias sail='[ -f sail ] && bash sail || bash vendor/bin/sail'
-
-Migrate the database with seeding:
-
-    sail artisan migrate --seed
-
-## Usage
-
-The API is available at `http://localhost:3000/api` (You can change the `APP_PORT` in `.env` file).
-
-### Run tests
-
-    sail artisan test
-
-### Run PHPStan static analysis
-
-    sail php ./vendor/bin/phpstan
-
-### OpenAPI specification (not ready yet)
-
-Swagger UI will be live at [http://localhost:3000/api/documentation](http://localhost:3000/api/documentation).
-
-For now, please visit the specification [here](https://github.com/gothinkster/realworld/tree/main/api).
-
-## Contributions
-
-Feedback, suggestions, and improvements are welcome, feel free to contribute.
-
-## License
-
-The MIT License (MIT). Please see [`LICENSE`](./LICENSE) for more information.
